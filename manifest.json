@@ -1,12 +1,12 @@
 {
-  "name": "Мой аэропорт (тест)",
-  "short_name": "Аэро тест",
-  "description": "Проверка телефона для игры «Мой аэропорт»",
+  "name": "Мой аэропорт",
+  "short_name": "Мой аэропорт",
+  "description": "Игра «Мой аэропорт»: диспетчер аэропорта",
   "lang": "ru",
   "display": "standalone",
   "orientation": "landscape",
-  "background_color": "#061a3d",
-  "theme_color": "#061a3d",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "icon-192.png",

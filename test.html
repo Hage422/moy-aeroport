@@ -1,0 +1,1197 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Мой аэропорт тест</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Аэро тест">
+<meta name="theme-color" content="#061a3d">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+/* Раскладка: слева карта до самого края экрана, справа панель проверок с прокруткой.
+   В вертикальной ориентации карта сверху, панель снизу. */
+:root {
+  --bg: #061a3d;
+  --panel: #0a2250;
+  --raise: #0f2f69;
+  --line: #1c458a;
+  --fg: #eaf4ff;
+  --muted: #8fb5e8;
+  --accent: #5cc8ff;
+  --accent-ink: #04203f;
+  --ok: #43d98a;
+  --warn: #ffb547;
+  --bad: #ff6a6a;
+  --on-status: #06182f;
+  --hud: rgba(6, 26, 61, 0.80);
+  --grass: #5f9d4b;
+  --font-display: "Oswald", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 13px/1.4 var(--font-body);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app { height: 100%; display: flex; min-height: 0; }
+
+#stageWrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--grass);
+  touch-action: none;
+}
+#stage { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.safe-frame {
+  position: absolute; top: 0; bottom: 0;
+  left: env(safe-area-inset-left, 0px);
+  width: 0;
+  border-left: 1px dashed var(--accent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.hud {
+  position: absolute; left: 0; right: 0; top: 0;
+  display: flex; align-items: flex-start; gap: 8px;
+  padding-top: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: 12px;
+  pointer-events: none;
+}
+.hud .spacer { flex: 1 1 auto; }
+.chip {
+  background: var(--hud);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 9px;
+  font: 500 14px/1 var(--font-display);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+.stage-btn {
+  pointer-events: auto;
+  appearance: none; -webkit-appearance: none;
+  background: var(--hud);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 8px;
+  min-height: 32px;
+  padding: 0 11px;
+  font: 500 13px/1 var(--font-body);
+  touch-action: manipulation;
+}
+.hint {
+  position: absolute; left: 0; right: 12px; bottom: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+.hint span {
+  display: inline-block;
+  background: var(--hud);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+#panel {
+  flex: 0 0 clamp(320px, 46%, 460px);
+  min-width: 0; min-height: 0;
+  overflow-x: hidden; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  padding-block: 10px 18px;
+  padding-left: 14px;
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; }
+.brand-name { font: 600 22px/1 var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; }
+.brand-sub { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.progress {
+  font: 500 14px/1 var(--font-display);
+  letter-spacing: 0.06em;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.progress[data-full="1"] { background: var(--ok); border-color: var(--ok); color: var(--on-status); }
+
+.banner {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warn);
+  color: var(--on-status);
+  font-weight: 600;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  column-gap: 10px;
+  padding-block: 12px;
+  border-top: 1px solid var(--line);
+}
+.badge {
+  width: 24px; height: 24px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  display: grid; place-items: center;
+  color: var(--muted);
+  font: 700 14px/1 var(--font-body);
+}
+.badge::before { content: "·"; font-size: 24px; line-height: 0; }
+.check[data-state="ok"] .badge { background: var(--ok); border-color: var(--ok); color: var(--on-status); }
+.check[data-state="ok"] .badge::before { content: "✓"; font-size: 14px; }
+.check[data-state="warn"] .badge { background: var(--warn); border-color: var(--warn); color: var(--on-status); }
+.check[data-state="warn"] .badge::before { content: "!"; font-size: 15px; }
+.check[data-state="bad"] .badge { background: var(--bad); border-color: var(--bad); color: var(--on-status); }
+.check[data-state="bad"] .badge::before { content: "✕"; font-size: 13px; }
+
+.check h2 {
+  margin: 0 0 4px;
+  font: 600 15px/1.2 var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.opt {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font: 400 11px/1 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: 2px;
+}
+.msg { margin: 0; }
+.small { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+
+.btn {
+  appearance: none; -webkit-appearance: none;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raise);
+  color: var(--fg);
+  font: 500 14px/1 var(--font-body);
+  touch-action: manipulation;
+}
+.btn:active { background: var(--line); }
+.btn:focus-visible, .stage-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.ask-q { color: var(--muted); font-size: 12px; }
+
+.tag {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font: 500 12px/1 var(--font-body);
+}
+.tag.done { border-color: var(--ok); color: var(--ok); }
+.tag.done::before { content: "✓ "; }
+
+.counter { min-width: 40px; font: 600 30px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.fps { font: 600 36px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.fps-unit { margin-left: 6px; color: var(--muted); font-size: 12px; }
+
+.report-head { padding-top: 12px; border-top: 1px solid var(--line); }
+.report-head h2 { margin: 0 0 4px; font: 600 15px/1.2 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
+pre.report {
+  margin: 8px 0 0;
+  padding: 10px;
+  max-height: 230px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 11px/1.5 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+#probe {
+  position: fixed; left: 0; top: 0; width: 0; height: 0;
+  visibility: hidden; pointer-events: none;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+@media (orientation: portrait) {
+  #app { flex-direction: column; }
+  #stageWrap { flex: 0 0 38%; }
+  #panel {
+    flex: 1 1 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn, .stage-btn { transition: none; }
+}
+</style>
+</head>
+<body>
+
+
+<div id="app">
+  <div id="stageWrap">
+    <canvas id="stage" aria-label="Тестовая карта аэропорта"></canvas>
+    <div id="safeFrame" class="safe-frame" hidden></div>
+    <div class="hud">
+      <div class="chip" id="zoomChip">×1.00</div>
+      <div class="chip" id="fpsChip">0 FPS</div>
+      <div class="spacer"></div>
+      <button class="stage-btn" id="b-view" type="button">Сбросить масштаб</button>
+    </div>
+    <div class="hint"><span>Тап по самолёту или месту. Масштаб двумя пальцами. Сдвиг одним.</span></div>
+  </div>
+
+  <aside id="panel" aria-label="Проверки">
+    <header class="top">
+      <div>
+        <div class="brand-name">Мой аэропорт</div>
+        <div class="brand-sub">Проверка телефона, версия 1</div>
+      </div>
+      <div class="progress" id="progress" data-full="0">0 из 6</div>
+    </header>
+
+    <div class="banner" id="rotateBanner" hidden>Поверните телефон набок. Игра будет в горизонтальном режиме.</div>
+
+    <section class="check" id="c-launch" data-state="idle">
+      <div class="badge" aria-hidden="true"></div>
+      <div>
+        <h2>Запуск</h2>
+        <p class="msg" id="m-launch">Проверяю…</p>
+        <p class="small" id="diagLine"></p>
+      </div>
+    </section>
+
+    <section class="check" id="c-screen" data-state="idle">
+      <div class="badge" aria-hidden="true"></div>
+      <div>
+        <h2>Экран</h2>
+        <p class="msg" id="m-screen">Проверяю…</p>
+        <p class="small" id="insetInfo"></p>
+      </div>
+    </section>
+
+    <section class="check" id="c-sound" data-state="idle">
+      <div class="badge" aria-hidden="true"></div>
+      <div>
+        <h2>Звук</h2>
+        <p class="msg" id="m-sound">Нажмите кнопки по очереди. Должны прозвучать щелчок, два тона и шум двигателя.</p>
+        <div class="row">
+          <button class="btn" id="b-click" type="button">Клик</button>
+          <button class="btn" id="b-signal" type="button">Сигнал</button>
+          <button class="btn" id="b-engine" type="button">Двигатель</button>
+        </div>
+        <div class="row" id="soundAsk" hidden>
+          <span class="ask-q">Слышно?</span>
+          <button class="btn" id="b-hear" type="button">Слышу</button>
+          <button class="btn" id="b-nohear" type="button">Не слышу</button>
+        </div>
+        <p class="small" id="soundInfo"></p>
+      </div>
+    </section>
+
+    <section class="check" id="c-touch" data-state="idle">
+      <div class="badge" aria-hidden="true"></div>
+      <div>
+        <h2>Касания и масштаб</h2>
+        <p class="msg" id="m-touch">На карте тапните самолёт или зелёное место, сведите и разведите два пальца, потяните карту одним пальцем.</p>
+        <div class="row">
+          <span class="tag" id="t-tap">Тап</span>
+          <span class="tag" id="t-pinch">Два пальца</span>
+          <span class="tag" id="t-drag">Сдвиг</span>
+        </div>
+        <p class="small" id="touchInfo"></p>
+      </div>
+    </section>
+
+    <section class="check" id="c-save" data-state="idle">
+      <div class="badge" aria-hidden="true"></div>
+      <div>
+        <h2>Сохранение</h2>
+        <p class="msg" id="m-save">Проверяю…</p>
+        <div class="row">
+          <span class="counter" id="counter">0</span>
+          <button class="btn" id="b-plus" type="button">+1</button>
+          <button class="btn" id="b-zero" type="button">Обнулить</button>
+        </div>
+        <p class="small">В Safari и на значке «Домой» данные хранятся отдельно, это нормально.</p>
+      </div>
+    </section>
+
+    <section class="check" id="c-fps" data-state="idle">
+      <div class="badge" aria-hidden="true"></div>
+      <div>
+        <h2>Скорость</h2>
+        <div><span class="fps" id="fpsNow">0</span><span class="fps-unit">кадров в секунду</span></div>
+        <p class="msg" id="m-fps">Считаю…</p>
+        <div class="row">
+          <button class="btn" id="b-heavy" type="button" aria-pressed="false">Нагрузка: обычная</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="check" id="c-wake" data-state="idle">
+      <div class="badge" aria-hidden="true"></div>
+      <div>
+        <h2>Экран не гаснет <span class="opt">по желанию</span></h2>
+        <p class="msg" id="m-wake">Не даёт экрану погаснуть, пока игра открыта.</p>
+        <div class="row">
+          <button class="btn" id="b-wake" type="button">Включить</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="report-head">
+      <h2>Отчёт</h2>
+      <p class="small">Нажмите «Скопировать» и вставьте текст в чат. Или сделайте скриншот этой панели.</p>
+      <pre class="report" id="report"></pre>
+      <div class="row">
+        <button class="btn primary" id="b-copy" type="button">Скопировать отчёт</button>
+      </div>
+      <p class="small" id="copyNote"></p>
+    </section>
+  </aside>
+</div>
+<div id="probe"></div>
+
+<script>
+(() => {
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+/* ───────── как запущена страница ───────── */
+const standalone = (() => {
+  try {
+    return navigator.standalone === true ||
+      matchMedia('(display-mode: standalone)').matches ||
+      matchMedia('(display-mode: fullscreen)').matches;
+  } catch (e) { return false; }
+})();
+const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+
+/* ───────── сохранение ───────── */
+const KEY = 'moy-aeroport-test-v1';
+const store = { launches: 0, counter: 0, modes: [] };
+let storeOk = true;
+try {
+  const raw = localStorage.getItem(KEY);
+  if (raw) { const o = JSON.parse(raw); if (o && typeof o === 'object') Object.assign(store, o); }
+} catch (e) { storeOk = false; }
+function saveStore() {
+  try { localStorage.setItem(KEY, JSON.stringify(store)); return true; }
+  catch (e) { storeOk = false; return false; }
+}
+store.launches = (store.launches | 0) + 1;
+store.counter = store.counter | 0;
+store.modes = (Array.isArray(store.modes) ? store.modes : []).concat(standalone ? 'приложение' : 'сайт').slice(-5);
+saveStore();
+try { storeOk = storeOk && JSON.parse(localStorage.getItem(KEY)).launches === store.launches; } catch (e) { storeOk = false; }
+
+/* ───────── состояние проверок ───────── */
+const answers = { sound: null };
+const touch = { taps: 0, pinch: false, drag: false, maxZoom: 1 };
+let lastTap = '';
+let heavy = false;
+
+function setCheck(id, state, msg) {
+  const el = $('c-' + id);
+  if (!el) return;
+  el.dataset.state = state;
+  if (msg != null) { const m = $('m-' + id); if (m) m.textContent = msg; }
+  updateProgress();
+}
+function updateProgress() {
+  const ids = ['launch', 'screen', 'sound', 'touch', 'save', 'fps'];
+  let n = 0;
+  ids.forEach((id) => { if ($('c-' + id).dataset.state === 'ok') n++; });
+  $('progress').textContent = n + ' из ' + ids.length;
+  $('progress').dataset.full = n === ids.length ? '1' : '0';
+}
+
+/* ───────── запуск и экран ───────── */
+const probe = $('probe');
+function readInsets() {
+  const cs = getComputedStyle(probe);
+  return {
+    t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0,
+    b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0,
+  };
+}
+function updateLaunch() {
+  if (standalone) setCheck('launch', 'ok', 'Открыто с экрана «Домой». Так и должна запускаться игра.');
+  else setCheck('launch', 'warn', 'Сейчас страница открыта как обычный сайт. Откройте ссылку в Safari, нажмите «Поделиться», выберите «На экран “Домой”», затем запустите значок с главного экрана.');
+  $('diagLine').textContent = 'Адрес: ' + location.host + '. Страница открыта ' + (inFrame ? 'внутри рамки.' : 'напрямую.');
+}
+function updateScreen() {
+  const w = Math.round(window.innerWidth), h = Math.round(window.innerHeight);
+  const land = w > h;
+  const ins = readInsets();
+  $('rotateBanner').hidden = land;
+  setCheck('screen', land ? 'ok' : 'warn',
+    land ? 'Горизонтально, ' + w + ' × ' + h + '.'
+         : 'Сейчас вертикально, ' + w + ' × ' + h + '. Поверните телефон набок. Если экран не поворачивается, выключите блокировку ориентации в Пункте управления.');
+  $('insetInfo').textContent = 'Вырезы экрана: слева ' + Math.round(ins.l) + ', справа ' + Math.round(ins.r) + ', снизу ' + Math.round(ins.b) + '.';
+  $('safeFrame').hidden = !(ins.l > 0);
+}
+
+/* ───────── сохранение: интерфейс ───────── */
+function updateSave() {
+  $('counter').textContent = store.counter;
+  if (!storeOk) setCheck('save', 'bad', 'Хранилище не работает, данные не сохранятся.');
+  else if (store.launches >= 2) setCheck('save', 'ok', 'Данные сохранились между запусками. Запусков: ' + store.launches + '. Последние: ' + store.modes.join(', ') + '.');
+  else setCheck('save', 'idle', 'Хранилище работает. Нажмите +1, закройте приложение смахиванием вверх и откройте снова. Число должно остаться.');
+}
+$('b-plus').addEventListener('click', () => { store.counter++; saveStore(); updateSave(); });
+$('b-zero').addEventListener('click', () => { store.counter = 0; saveStore(); updateSave(); });
+
+/* ───────── звук ───────── */
+let actx = null, master = null, silentState = 'не нужен', audioErr = '';
+let noiseBuf = null;
+
+function startSilentTag() {
+  try {
+    const sr = 8000, n = 4000, bytes = new Uint8Array(44 + n), dv = new DataView(bytes.buffer);
+    const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+    wr(0, 'RIFF'); dv.setUint32(4, 36 + n, true); wr(8, 'WAVE'); wr(12, 'fmt ');
+    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, sr, true); dv.setUint32(28, sr, true); dv.setUint16(32, 1, true); dv.setUint16(34, 8, true);
+    wr(36, 'data'); dv.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) bytes[44 + i] = 128;
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    const a = new Audio('data:audio/wav;base64,' + btoa(bin));
+    a.loop = true;
+    const pr = a.play();
+    if (pr && pr.catch) pr.catch(() => { silentState = 'не запустился'; });
+    silentState = 'запасной способ включён';
+  } catch (e) { silentState = 'не запустился'; }
+}
+
+function initAudio() {
+  try {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) { audioErr = 'нет Web Audio'; return false; }
+      let api = false;
+      try { if (navigator.audioSession) { navigator.audioSession.type = 'playback'; api = true; } } catch (e) {}
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 0.85;
+      const comp = actx.createDynamicsCompressor();
+      master.connect(comp); comp.connect(actx.destination);
+      try { actx.onstatechange = refreshSoundInfo; } catch (e) {}
+      const b = actx.createBuffer(1, 1, 22050), s = actx.createBufferSource();
+      s.buffer = b; s.connect(actx.destination); s.start(0);
+      if (!api) startSilentTag();
+    }
+    if (actx.state !== 'running') actx.resume();
+    return true;
+  } catch (e) { audioErr = String((e && e.message) || e); return false; }
+}
+function audioModeText() {
+  try { return navigator.audioSession ? 'audioSession=' + navigator.audioSession.type : 'без audioSession, ' + silentState; }
+  catch (e) { return 'нет данных'; }
+}
+function refreshSoundInfo() {
+  $('soundInfo').textContent = 'Аудио: ' + (actx ? actx.state : 'ещё не запущено') + '. Режим: ' + audioModeText() + (audioErr ? '. Ошибка: ' + audioErr : '') + '.';
+}
+function tone(freq, t0, dur, type, peak) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(master);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function sndClick() {
+  if (!actx) return;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(1500, t);
+  o.frequency.exponentialRampToValueAtTime(520, t + 0.05);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.6, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+  o.connect(g); g.connect(master);
+  o.start(t); o.stop(t + 0.09);
+}
+function sndSignal() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  tone(1046.5, t, 0.6, 'sine', 0.5);
+  tone(2093, t, 0.4, 'sine', 0.12);
+  tone(783.99, t + 0.34, 0.9, 'sine', 0.5);
+  tone(1568, t + 0.34, 0.5, 'sine', 0.1);
+}
+function sndEngine() {
+  if (!actx) return;
+  const t = actx.currentTime, dur = 3.4;
+  if (!noiseBuf) {
+    noiseBuf = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const out = actx.createGain();
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(0.9, t + 0.9);
+  out.gain.setValueAtTime(0.9, t + dur - 1.2);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out.connect(master);
+
+  const ns = actx.createBufferSource(); ns.buffer = noiseBuf; ns.loop = true;
+  const lp = actx.createBiquadFilter(); lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(250, t);
+  lp.frequency.exponentialRampToValueAtTime(2200, t + 1.6);
+  lp.frequency.exponentialRampToValueAtTime(900, t + dur);
+  const ng = actx.createGain(); ng.gain.value = 0.9;
+  ns.connect(lp); lp.connect(ng); ng.connect(out);
+  ns.start(t); ns.stop(t + dur + 0.1);
+
+  [70, 74].forEach((f) => {
+    const o = actx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * 2.6, t + 1.6);
+    o.frequency.exponentialRampToValueAtTime(f * 1.6, t + dur);
+    const f2 = actx.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = 600;
+    const g = actx.createGain(); g.gain.value = 0.14;
+    o.connect(f2); f2.connect(g); g.connect(out);
+    o.start(t); o.stop(t + dur + 0.1);
+  });
+  const w = actx.createOscillator(); w.type = 'sine';
+  w.frequency.setValueAtTime(1100, t);
+  w.frequency.exponentialRampToValueAtTime(2300, t + 1.6);
+  w.frequency.exponentialRampToValueAtTime(1500, t + dur);
+  const wg = actx.createGain(); wg.gain.value = 0.02;
+  w.connect(wg); wg.connect(out);
+  w.start(t); w.stop(t + dur + 0.1);
+}
+function afterSound() {
+  $('soundAsk').hidden = false;
+  if (answers.sound === false) {
+    answers.sound = null;
+    setCheck('sound', 'idle', 'Нажмите кнопки по очереди. Должны прозвучать щелчок, два тона и шум двигателя.');
+  }
+  refreshSoundInfo();
+}
+function playBtn(id, fn) {
+  $(id).addEventListener('click', () => { initAudio(); try { fn(); } catch (e) { audioErr = String(e && e.message || e); } afterSound(); });
+}
+playBtn('b-click', sndClick);
+playBtn('b-signal', sndSignal);
+playBtn('b-engine', sndEngine);
+$('b-hear').addEventListener('click', () => { answers.sound = true; setCheck('sound', 'ok', 'Звук работает.'); });
+$('b-nohear').addEventListener('click', () => {
+  answers.sound = false;
+  setCheck('sound', 'bad', 'Звука нет. Проверьте громкость и боковой переключатель, потом нажмите кнопки ещё раз.');
+});
+
+/* ───────── экран не гаснет ───────── */
+let wl = null, wantWake = false, wakeErr = '';
+function syncWakeUI() {
+  const supported = 'wakeLock' in navigator;
+  $('b-wake').textContent = wantWake ? 'Выключить' : 'Включить';
+  if (!supported) setCheck('wake', 'warn', 'В этом режиме не поддерживается. Для игры не обязательно.');
+  else if (wl) setCheck('wake', 'ok', 'Включено. Экран не погаснет, пока игра открыта.');
+  else if (wakeErr) setCheck('wake', 'warn', 'Не получилось включить (' + wakeErr + '). Для игры не обязательно.');
+  else setCheck('wake', 'idle', 'Не даёт экрану погаснуть, пока игра открыта.');
+}
+async function requestWake() {
+  if (!('wakeLock' in navigator)) { syncWakeUI(); return; }
+  try {
+    wl = await navigator.wakeLock.request('screen');
+    wakeErr = '';
+    wl.addEventListener('release', () => { wl = null; syncWakeUI(); });
+  } catch (e) { wantWake = false; wl = null; wakeErr = (e && e.name) || 'ошибка'; }
+  syncWakeUI();
+}
+$('b-wake').addEventListener('click', () => {
+  if (wantWake) { wantWake = false; try { if (wl) wl.release(); } catch (e) {} wl = null; wakeErr = ''; syncWakeUI(); }
+  else { wantWake = true; requestWake(); }
+});
+function wakeText() {
+  if (!('wakeLock' in navigator)) return 'не поддерживается';
+  return wl ? 'включено' : (wakeErr ? 'ошибка ' + wakeErr : 'поддерживается, не включали');
+}
+
+/* ───────── карта: мир, самолёты, спрайты ───────── */
+const WORLD = { w: 1200, h: 700 };
+const ZMAX = 2.5;
+const cv = $('stage');
+const ctx = cv.getContext('2d', { alpha: false });
+let W = 1, H = 1, dpr = 1, base = 1;
+const cam = { x: WORLD.w / 2, y: WORLD.h / 2, zoom: 1 };
+const scale = () => base * cam.zoom;
+const toWorld = (sx, sy) => { const s = scale(); return { x: cam.x + (sx - W / 2) / s, y: cam.y + (sy - H / 2) / s }; };
+function clampCam() {
+  const s = scale(), vw = W / s, vh = H / s;
+  cam.x = vw >= WORLD.w ? WORLD.w / 2 : clamp(cam.x, vw / 2, WORLD.w - vw / 2);
+  cam.y = vh >= WORLD.h ? WORLD.h / 2 : clamp(cam.y, vh / 2, WORLD.h - vh / 2);
+}
+function resize() {
+  const r = $('stageWrap').getBoundingClientRect();
+  W = Math.max(1, r.width); H = Math.max(1, r.height);
+  dpr = Math.min(window.devicePixelRatio || 1, 3);
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  base = Math.min(W / WORLD.w, H / WORLD.h);
+  clampCam();
+}
+
+function rr(c, x, y, w, h, r) {
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+function polyPath(c, pts) {
+  c.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
+  c.closePath();
+}
+const mirror = (pts) => pts.map((p) => [-p[0], p[1]]).reverse();
+const lerp2 = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+
+const TYPES = {
+  S: { L: 56, S: 54, fw: 7.4, engW: 6.4 },
+  M: { L: 72, S: 72, fw: 8.8, engW: 7.6 },
+  L: { L: 104, S: 102, fw: 11.8, engW: 10.4 },
+};
+const LIVERIES = [
+  { body: '#f6f8fb', accent: '#2f6fe0', accent2: '#183c8c' },
+  { body: '#f6f8fb', accent: '#e8553d', accent2: '#8f2a1b' },
+  { body: '#f6f8fb', accent: '#2fb36a', accent2: '#17673d' },
+  { body: '#f6f8fb', accent: '#8b5ad6', accent2: '#4a2a8f' },
+  { body: '#fff4d6', accent: '#f0a31a', accent2: '#9a6200' },
+];
+
+function planeGeom(T) {
+  const L = T.L, S = T.S, h = T.fw / 2;
+  const y0 = -L * 0.04, half = S / 2 - h, sweep = half * 0.6;
+  const wingR = [[h * 0.9, y0], [S / 2, y0 + sweep], [S / 2, y0 + sweep + L * 0.075], [h * 0.9, y0 + L * 0.22]];
+  const ty0 = L * 0.36, tspan = S * 0.19, tsweep = (tspan - h * 0.5) * 0.6;
+  const stabR = [[h * 0.5, ty0], [tspan, ty0 + tsweep], [tspan, ty0 + tsweep + L * 0.045], [h * 0.5, ty0 + L * 0.11]];
+  return {
+    L, S, h, wingR, stabR,
+    engX: h + half * 0.36, engY0: y0 + sweep * 0.36 - L * 0.07, engLen: L * 0.2, engW: T.engW,
+  };
+}
+function addFuselage(c, g) {
+  const L = g.L, h = g.h;
+  c.moveTo(0, -L / 2);
+  c.bezierCurveTo(h * 0.9, -L / 2, h, -L / 2 + L * 0.10, h, -L / 2 + L * 0.22);
+  c.lineTo(h, L * 0.22);
+  c.bezierCurveTo(h, L * 0.36, h * 0.35, L * 0.46, h * 0.30, L / 2);
+  c.lineTo(-h * 0.30, L / 2);
+  c.bezierCurveTo(-h * 0.35, L * 0.46, -h, L * 0.36, -h, L * 0.22);
+  c.lineTo(-h, -L / 2 + L * 0.22);
+  c.bezierCurveTo(-h, -L / 2 + L * 0.10, -h * 0.9, -L / 2, 0, -L / 2);
+  c.closePath();
+}
+function silhouette(c, g) {
+  c.beginPath();
+  addFuselage(c, g);
+  polyPath(c, g.wingR); polyPath(c, mirror(g.wingR));
+  polyPath(c, g.stabR); polyPath(c, mirror(g.stabR));
+  rr(c, g.engX - g.engW / 2, g.engY0, g.engW, g.engLen, g.engW / 2);
+  rr(c, -g.engX - g.engW / 2, g.engY0, g.engW, g.engLen, g.engW / 2);
+}
+function drawBody(c, g, liv) {
+  const L = g.L, h = g.h;
+  c.lineJoin = 'round';
+  const surfaces = [[g.stabR, 0.7], [mirror(g.stabR), 0.7], [g.wingR, 0.78], [mirror(g.wingR), 0.78]];
+  surfaces.forEach(([pts]) => {
+    c.beginPath(); polyPath(c, pts);
+    c.fillStyle = '#dde5ee'; c.fill();
+    c.strokeStyle = '#a9b5c4'; c.lineWidth = 0.4; c.stroke();
+  });
+  surfaces.forEach(([pts, u]) => {
+    const le0 = lerp2(pts[0], pts[1], u), te0 = lerp2(pts[3], pts[2], u);
+    c.beginPath(); polyPath(c, [le0, pts[1], pts[2], te0]);
+    c.fillStyle = liv.accent; c.fill();
+  });
+  const gr = c.createLinearGradient(-h, 0, h, 0);
+  gr.addColorStop(0, '#c4cfdc'); gr.addColorStop(0.42, liv.body); gr.addColorStop(0.72, '#eef2f7'); gr.addColorStop(1, '#bac5d3');
+  c.beginPath(); addFuselage(c, g);
+  c.fillStyle = gr; c.fill();
+  c.strokeStyle = '#9fabbb'; c.lineWidth = 0.4; c.stroke();
+  // ливрея: полосы по бокам и киль
+  c.fillStyle = liv.accent;
+  c.fillRect(-h * 0.62 - h * 0.09, -L * 0.28, h * 0.18, L * 0.5);
+  c.fillRect(h * 0.62 - h * 0.09, -L * 0.28, h * 0.18, L * 0.5);
+  c.fillStyle = liv.accent2;
+  c.fillRect(-h * 0.08, L * 0.24, h * 0.16, L * 0.22);
+  // кабина
+  c.beginPath();
+  polyPath(c, [[-h * 0.55, -L / 2 + L * 0.085], [h * 0.55, -L / 2 + L * 0.085], [h * 0.42, -L / 2 + L * 0.125], [-h * 0.42, -L / 2 + L * 0.125]]);
+  c.fillStyle = '#1b2d4a'; c.fill();
+  // двигатели
+  [g.engX, -g.engX].forEach((x) => {
+    c.beginPath(); rr(c, x - g.engW / 2, g.engY0, g.engW, g.engLen, g.engW / 2);
+    c.fillStyle = '#b6c0cd'; c.fill();
+    c.strokeStyle = '#8d9aab'; c.lineWidth = 0.4; c.stroke();
+    c.beginPath(); c.ellipse(x, g.engY0 + g.engW * 0.5, g.engW * 0.38, g.engW * 0.28, 0, 0, Math.PI * 2);
+    c.fillStyle = '#2b3a52'; c.fill();
+  });
+}
+
+const SPR = { S: [], M: [], L: [] };
+const SPR_K = 3;
+const mkCanvas = (px) => { const c = document.createElement('canvas'); c.width = c.height = px; return c; };
+function bakeShadow(g, sideW, k) {
+  const cvs = mkCanvas(Math.ceil(sideW * k)), c = cvs.getContext('2d');
+  const OFF = 1000;
+  c.translate(cvs.width / 2 - OFF * k, cvs.height / 2);
+  c.scale(k, k);
+  c.shadowColor = 'rgba(10,25,45,0.45)';
+  c.shadowBlur = 2.6 * k;
+  c.shadowOffsetX = OFF * k;
+  c.shadowOffsetY = 0;
+  c.fillStyle = '#000';
+  silhouette(c, g);
+  c.fill();
+  return cvs;
+}
+function buildSprites() {
+  ['S', 'M', 'L'].forEach((key) => {
+    const T = TYPES[key], g = planeGeom(T), sideW = Math.max(T.L, T.S) * 1.3;
+    const shadow = bakeShadow(g, sideW, 1.5);
+    LIVERIES.forEach((liv) => {
+      const body = mkCanvas(Math.ceil(sideW * SPR_K)), c = body.getContext('2d');
+      c.translate(body.width / 2, body.height / 2);
+      c.scale(SPR_K, SPR_K);
+      drawBody(c, g, liv);
+      SPR[key].push({ body, shadow, sideW, L: T.L, S: T.S });
+    });
+  });
+}
+
+/* контуры руления: скруглённые прямоугольники */
+function makeLoop(x, y, w, h, r) {
+  const e1 = w - 2 * r, e2 = h - 2 * r, arc = Math.PI * r / 2;
+  const len = 2 * e1 + 2 * e2 + 4 * arc;
+  function at(s) {
+    s = ((s % len) + len) % len;
+    if (s < e1) return { x: x + r + s, y, a: 0 };
+    s -= e1;
+    if (s < arc) { const f = -Math.PI / 2 + s / r; return { x: x + w - r + Math.cos(f) * r, y: y + r + Math.sin(f) * r, a: f + Math.PI / 2 }; }
+    s -= arc;
+    if (s < e2) return { x: x + w, y: y + r + s, a: Math.PI / 2 };
+    s -= e2;
+    if (s < arc) { const f = s / r; return { x: x + w - r + Math.cos(f) * r, y: y + h - r + Math.sin(f) * r, a: f + Math.PI / 2 }; }
+    s -= arc;
+    if (s < e1) return { x: x + w - r - s, y: y + h, a: Math.PI };
+    s -= e1;
+    if (s < arc) { const f = Math.PI / 2 + s / r; return { x: x + r + Math.cos(f) * r, y: y + h - r + Math.sin(f) * r, a: f + Math.PI / 2 }; }
+    s -= arc;
+    if (s < e2) return { x, y: y + h - r - s, a: -Math.PI / 2 };
+    s -= e2;
+    const f = Math.PI + s / r;
+    return { x: x + r + Math.cos(f) * r, y: y + r + Math.sin(f) * r, a: f + Math.PI / 2 };
+  }
+  return { x, y, w, h, r, len, at };
+}
+const LOOPS = [
+  makeLoop(250, 150, 700, 290, 80),
+  makeLoop(330, 205, 540, 180, 55),
+  makeLoop(410, 250, 380, 90, 40),
+];
+const LOOP_TYPES = [['L', 'M'], ['M', 'S'], ['S']];
+
+const STANDS = [];
+for (let i = 0; i < 6; i++) STANDS.push({ i, cx: 330 + i * 108, cy: 565, w: 96, h: 120, busy: false });
+
+const planes = [];
+const parked = [];
+let selPlane = null, selStand = null;
+const ripples = [];
+
+function addMover(loopIdx, frac, typeKey, livIdx, speed) {
+  const loop = LOOPS[loopIdx];
+  planes.push({ loop, s: frac * loop.len, v: speed, spr: SPR[typeKey][livIdx % LIVERIES.length], x: 0, y: 0, h: 0 });
+}
+function buildScene() {
+  planes.length = 0;
+  if (!heavy) {
+    addMover(0, 0.00, 'L', 0, 78); addMover(0, 0.50, 'M', 1, 78);
+    addMover(1, 0.15, 'M', 2, 66); addMover(1, 0.65, 'S', 3, 66);
+    addMover(2, 0.00, 'S', 4, 54); addMover(2, 0.50, 'S', 1, 54);
+  } else {
+    const n = 120;
+    for (let i = 0; i < n; i++) {
+      const li = i % 3, types = LOOP_TYPES[li];
+      addMover(li, Math.floor(i / 3) / (n / 3), types[(i >> 1) % types.length], i, 50 + (i % 5) * 12);
+    }
+  }
+  if (selPlane && !planes.includes(selPlane) && !parked.includes(selPlane)) selPlane = null;
+}
+function buildParked() {
+  const put = (si, type, li, h) => { const st = STANDS[si]; st.busy = true; parked.push({ x: st.cx, y: st.cy, h, spr: SPR[type][li] }); };
+  put(1, 'M', 0, Math.PI); put(3, 'L', 2, Math.PI); put(4, 'S', 3, Math.PI);
+}
+
+const SH = { x: 5, y: 7 };
+function drawWorld(t) {
+  ctx.fillStyle = '#5f9d4b';
+  ctx.fillRect(-1500, -1500, WORLD.w + 3000, WORLD.h + 3000);
+  ctx.fillStyle = '#67a653';
+  for (let x = -1500; x < WORLD.w + 1500; x += 120) ctx.fillRect(x, -1500, 60, WORLD.h + 3000);
+
+  [110, 1090].forEach((cx) => {
+    ctx.fillStyle = '#454c56'; ctx.fillRect(cx - 46, -1500, 92, WORLD.h + 3000);
+    ctx.fillStyle = '#f4f6f8';
+    ctx.fillRect(cx - 44, -1500, 3, WORLD.h + 3000); ctx.fillRect(cx + 41, -1500, 3, WORLD.h + 3000);
+    ctx.strokeStyle = '#f4f6f8'; ctx.lineWidth = 4; ctx.setLineDash([34, 26]);
+    ctx.beginPath(); ctx.moveTo(cx, -1500); ctx.lineTo(cx, WORLD.h + 1500); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  ctx.fillStyle = '#9aa2ac'; ctx.fillRect(150, 112, 900, 46);
+  ctx.beginPath(); rr(ctx, 200, 100, 800, 640, 26); ctx.fillStyle = '#b4bbc4'; ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let x = 300; x < 1000; x += 100) { ctx.moveTo(x, 100); ctx.lineTo(x, 740); }
+  for (let y = 200; y < 740; y += 100) { ctx.moveTo(200, y); ctx.lineTo(1000, y); }
+  ctx.stroke();
+
+  ctx.strokeStyle = '#f2c230'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(150, 135); ctx.lineTo(1050, 135); ctx.stroke();
+  LOOPS.forEach((l) => { ctx.beginPath(); rr(ctx, l.x, l.y, l.w, l.h, l.r); ctx.stroke(); });
+
+  ctx.beginPath(); rr(ctx, 250, 640, 700, 70, 10); ctx.fillStyle = '#2c3b57'; ctx.fill();
+  ctx.beginPath(); rr(ctx, 262, 650, 676, 24, 6); ctx.fillStyle = '#4a5f86'; ctx.fill();
+
+  STANDS.forEach((st) => {
+    if (!st.busy) {
+      ctx.fillStyle = 'rgba(150,255,175,0.38)';
+      ctx.fillRect(st.cx - st.w / 2, st.cy - st.h / 2, st.w, st.h);
+    }
+    ctx.strokeStyle = '#f4f6f8'; ctx.lineWidth = 3;
+    ctx.strokeRect(st.cx - st.w / 2, st.cy - st.h / 2, st.w, st.h);
+  });
+  if (selStand) {
+    ctx.save();
+    ctx.setLineDash([2, 11]); ctx.lineCap = 'round'; ctx.lineDashOffset = -t * 14;
+    ctx.strokeStyle = '#38f08a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(selStand.cx, selStand.cy, 66, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+}
+function drawShadow(p) {
+  const hw = p.spr.sideW / 2;
+  ctx.save();
+  ctx.translate(p.x + SH.x, p.y + SH.y); ctx.rotate(p.h);
+  ctx.drawImage(p.spr.shadow, -hw, -hw, p.spr.sideW, p.spr.sideW);
+  ctx.restore();
+}
+function drawBodySprite(p) {
+  const hw = p.spr.sideW / 2;
+  ctx.save();
+  ctx.translate(p.x, p.y); ctx.rotate(p.h);
+  ctx.drawImage(p.spr.body, -hw, -hw, p.spr.sideW, p.spr.sideW);
+  ctx.restore();
+}
+function draw(t) {
+  const s = scale();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#5f9d4b'; ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * (W / 2 - cam.x * s), dpr * (H / 2 - cam.y * s));
+  drawWorld(t);
+  for (let i = 0; i < parked.length; i++) drawShadow(parked[i]);
+  for (let i = 0; i < planes.length; i++) drawShadow(planes[i]);
+  for (let i = 0; i < parked.length; i++) drawBodySprite(parked[i]);
+  for (let i = 0; i < planes.length; i++) drawBodySprite(planes[i]);
+  if (selPlane) {
+    ctx.save();
+    ctx.setLineDash([4, 9]); ctx.lineCap = 'round'; ctx.lineDashOffset = -t * 18;
+    ctx.strokeStyle = '#5cc8ff'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(selPlane.x, selPlane.y, Math.max(selPlane.spr.L, selPlane.spr.S) * 0.62, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rp = ripples[i], age = (t - rp.t0) / 0.6;
+    if (age >= 1) { ripples.splice(i, 1); continue; }
+    ctx.strokeStyle = 'rgba(255,255,255,' + (1 - age).toFixed(2) + ')'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, 8 + 46 * age, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+/* ───────── касания: тап, два пальца, сдвиг ───────── */
+const ptrs = new Map();
+let multi = false, dragged = false, pinch = null;
+
+function updateTouchUI() {
+  $('t-tap').classList.toggle('done', touch.taps > 0);
+  $('t-pinch').classList.toggle('done', touch.pinch);
+  $('t-drag').classList.toggle('done', touch.drag);
+  $('touchInfo').textContent = 'Масштаб ×' + cam.zoom.toFixed(2) + ', наибольший ×' + touch.maxZoom.toFixed(2) + ', тапов ' + touch.taps + (lastTap ? ', последний: ' + lastTap : '') + '.';
+  setCheck('touch', touch.taps > 0 && touch.pinch && touch.drag ? 'ok' : 'idle');
+}
+function handleTap(sx, sy) {
+  touch.taps++;
+  const w = toWorld(sx, sy);
+  let hit = 'мимо', best = null, bd = 1e9;
+  const all = planes.concat(parked);
+  for (const p of all) {
+    const d = Math.hypot(p.x - w.x, p.y - w.y), r = Math.max(p.spr.L, p.spr.S) * 0.55;
+    if (d < r && d < bd) { best = p; bd = d; }
+  }
+  if (best) { selPlane = selPlane === best ? null : best; hit = 'самолёт'; }
+  else {
+    const st = STANDS.find((q) => Math.abs(w.x - q.cx) < q.w / 2 && Math.abs(w.y - q.cy) < q.h / 2);
+    if (st && !st.busy) { selStand = selStand === st ? null : st; hit = 'место'; }
+  }
+  ripples.push({ x: w.x, y: w.y, t0: simT });
+  try { sndClick(); } catch (e) {}
+  lastTap = hit;
+  updateTouchUI();
+}
+function startPinch() {
+  const pts = [...ptrs.values()], a = pts[0], b = pts[1];
+  pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: cam.zoom, aw: toWorld((a.x + b.x) / 2, (a.y + b.y) / 2) };
+}
+function localXY(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+cv.addEventListener('pointerdown', (e) => {
+  initAudio();
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  const q = localXY(e);
+  ptrs.set(e.pointerId, { x: q.x, y: q.y, sx: q.x, sy: q.y, t: performance.now() });
+  if (ptrs.size === 1) { multi = false; dragged = false; }
+  if (ptrs.size === 2) { multi = true; startPinch(); }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', (e) => {
+  const p = ptrs.get(e.pointerId);
+  if (!p) return;
+  const q = localXY(e);
+  if (ptrs.size === 1 && !multi) {
+    const dx = q.x - p.x, dy = q.y - p.y;
+    if (!dragged && Math.hypot(q.x - p.sx, q.y - p.sy) > 8) dragged = true;
+    if (dragged) {
+      const bx = cam.x, by = cam.y, s = scale();
+      cam.x -= dx / s; cam.y -= dy / s;
+      clampCam();
+      if (Math.hypot(cam.x - bx, cam.y - by) > 0.01) { touch.drag = true; updateTouchUI(); }
+    }
+    p.x = q.x; p.y = q.y;
+  } else if (ptrs.size >= 2 && pinch) {
+    p.x = q.x; p.y = q.y;
+    const pts = [...ptrs.values()], a = pts[0], b = pts[1];
+    const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    cam.zoom = clamp(pinch.z0 * d / pinch.d0, 1, ZMAX);
+    const s = scale();
+    cam.x = pinch.aw.x - (mx - W / 2) / s;
+    cam.y = pinch.aw.y - (my - H / 2) / s;
+    clampCam();
+    if (Math.abs(d - pinch.d0) > 20) touch.pinch = true;
+    if (cam.zoom > touch.maxZoom) touch.maxZoom = cam.zoom;
+    updateTouchUI();
+  }
+  e.preventDefault();
+});
+function endPointer(e, cancelled) {
+  const p = ptrs.get(e.pointerId);
+  if (!p) return;
+  ptrs.delete(e.pointerId);
+  if (!cancelled && !multi && !dragged && ptrs.size === 0 && performance.now() - p.t < 600) {
+    initAudio();
+    handleTap(p.x, p.y);
+  }
+  if (ptrs.size === 0) { multi = false; dragged = false; pinch = null; }
+}
+cv.addEventListener('pointerup', (e) => endPointer(e, false));
+cv.addEventListener('pointercancel', (e) => endPointer(e, true));
+cv.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+['gesturestart', 'gesturechange', 'gestureend'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault(), { passive: false }));
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+document.addEventListener('dblclick', (e) => e.preventDefault());
+
+$('b-view').addEventListener('click', () => {
+  cam.zoom = 1; cam.x = WORLD.w / 2; cam.y = WORLD.h / 2; clampCam(); updateTouchUI();
+});
+
+/* ───────── скорость ───────── */
+const FT = new Float32Array(300);
+let ftI = 0, ftN = 0, sumAll = 0, nAll = 0;
+function resetFps() { ftI = 0; ftN = 0; sumAll = 0; nAll = 0; }
+function recordFrame(d) {
+  FT[ftI] = d; ftI = (ftI + 1) % FT.length;
+  if (ftN < FT.length) ftN++;
+  sumAll += d; nAll++;
+}
+function fpsStats() {
+  if (ftN < 10) return null;
+  const n = Math.min(ftN, 120);
+  let sum = 0, mx = 0;
+  for (let k = 1; k <= n; k++) sum += FT[(ftI - k + FT.length) % FT.length];
+  for (let k = 1; k <= ftN; k++) { const v = FT[(ftI - k + FT.length) % FT.length]; if (v > mx) mx = v; }
+  return { now: 1000 / (sum / n), avg: 1000 / (sumAll / nAll), worst: 1000 / mx };
+}
+function updateFpsUI() {
+  const st = fpsStats();
+  $('zoomChip').textContent = '×' + cam.zoom.toFixed(2);
+  if (!st) return;
+  $('fpsChip').textContent = Math.round(st.now) + ' FPS';
+  $('fpsNow').textContent = Math.round(st.now);
+  if (nAll < 90) { setCheck('fps', 'idle', 'Считаю…'); return; }
+  const detail = 'Средняя ' + Math.round(st.avg) + ', хуже всего ' + Math.round(st.worst) + '. ';
+  if (st.avg >= 50) setCheck('fps', 'ok', detail + (st.avg > 100 ? 'Экран на 120 Гц, плавно.' : 'Плавно.'));
+  else if (st.avg >= 30) setCheck('fps', 'warn', detail + (st.avg < 36 ? 'Похоже, включён режим энергосбережения. Выключите его в настройках батареи.' : 'Заметные просадки.'));
+  else setCheck('fps', 'bad', detail + 'Слишком медленно.');
+}
+$('b-heavy').addEventListener('click', () => {
+  heavy = !heavy;
+  $('b-heavy').setAttribute('aria-pressed', heavy ? 'true' : 'false');
+  $('b-heavy').textContent = 'Нагрузка: ' + (heavy ? 'тяжёлая, 120 самолётов' : 'обычная');
+  buildScene(); resetFps();
+});
+
+/* ───────── отчёт ───────── */
+const yn = (v) => (v ? 'да' : 'нет');
+function buildReport() {
+  const ins = readInsets(), st = fpsStats();
+  const L = [];
+  L.push('Тест «Мой аэропорт», версия 1');
+  L.push('Запуск: ' + (standalone ? 'с экрана «Домой» (как приложение)' : 'обычный сайт, не приложение') + '; страница ' + (inFrame ? 'в рамке' : 'напрямую'));
+  L.push('Экран: ' + Math.round(innerWidth) + '×' + Math.round(innerHeight) + (innerWidth > innerHeight ? ' горизонтально' : ' вертикально') +
+    '; вырезы: слева ' + Math.round(ins.l) + ', справа ' + Math.round(ins.r) + ', снизу ' + Math.round(ins.b) + '; плотность ' + (window.devicePixelRatio || 1));
+  L.push('Звук: ' + (answers.sound === true ? 'слышно' : answers.sound === false ? 'НЕ слышно' : 'не проверено') +
+    '; аудио: ' + (actx ? actx.state : 'не запускали') + '; режим: ' + audioModeText());
+  L.push('Касания: тапов ' + touch.taps + '; два пальца ' + yn(touch.pinch) + '; сдвиг ' + yn(touch.drag) + '; наибольший масштаб ×' + touch.maxZoom.toFixed(2));
+  L.push('Сохранение: ' + (storeOk ? 'работает' : 'НЕ работает') + '; запусков ' + store.launches + '; число ' + store.counter + '; последние запуски: ' + store.modes.join(', '));
+  L.push('Скорость: ' + (st ? 'сейчас ' + Math.round(st.now) + ', средняя ' + Math.round(st.avg) + ', хуже всего ' + Math.round(st.worst) + ' кадров/с' : 'нет данных') + '; нагрузка ' + (heavy ? 'тяжёлая' : 'обычная'));
+  L.push('Экран не гаснет: ' + wakeText());
+  L.push('Адрес: ' + location.host);
+  L.push('Браузер: ' + navigator.userAgent);
+  return L.join('\n');
+}
+function refreshReport() {
+  try { const s = window.getSelection && window.getSelection(); if (s && String(s).length > 0) return; } catch (e) {}
+  $('report').textContent = buildReport();
+}
+function selectReport() {
+  try { const r = document.createRange(); r.selectNodeContents($('report')); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {}
+}
+$('b-copy').addEventListener('click', async () => {
+  $('report').textContent = buildReport();
+  const text = $('report').textContent;
+  try { await navigator.clipboard.writeText(text); $('copyNote').textContent = 'Скопировано. Вставьте текст в чат.'; }
+  catch (e) { selectReport(); $('copyNote').textContent = 'Само не скопировалось. Текст выделен, нажмите «Копировать» в появившемся меню.'; }
+});
+
+/* ───────── цикл ───────── */
+let last = 0, simT = 0;
+function frame(ts) {
+  requestAnimationFrame(frame);
+  if (document.hidden) { last = 0; return; }
+  const dtMs = last ? ts - last : 16.7;
+  last = ts;
+  if (dtMs < 250) recordFrame(dtMs);
+  const dt = Math.min(dtMs, 50) / 1000;
+  simT += dt;
+  for (let i = 0; i < planes.length; i++) {
+    const p = planes[i];
+    p.s += p.v * dt;
+    const q = p.loop.at(p.s);
+    p.x = q.x; p.y = q.y; p.h = q.a + Math.PI / 2;
+  }
+  draw(simT);
+}
+
+let rzQueued = false;
+function onResize() {
+  if (rzQueued) return;
+  rzQueued = true;
+  requestAnimationFrame(() => { rzQueued = false; resize(); updateScreen(); refreshReport(); });
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+try { new ResizeObserver(onResize).observe($('stageWrap')); } catch (e) {}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (wantWake && !wl) requestWake();
+    if (actx && actx.state !== 'running') { try { actx.resume(); } catch (e) {} }
+    resetFps();
+  }
+});
+window.addEventListener('pagehide', saveStore);
+
+/* ───────── старт ───────── */
+buildSprites();
+buildParked();
+buildScene();
+updateLaunch();
+updateSave();
+updateTouchUI();
+syncWakeUI();
+refreshSoundInfo();
+resize();
+updateScreen();
+refreshReport();
+setInterval(updateFpsUI, 250);
+setInterval(refreshReport, 3000);
+setTimeout(resetFps, 1500);
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
