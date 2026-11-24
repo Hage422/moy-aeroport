@@ -14,12 +14,13 @@ function fitCanvas() {                                      // the 956 x 440 pic
   const dpr = Math.min(window.devicePixelRatio || 1, APP.dprCap), W = Math.round(cw * dpr), H = Math.round(ch * dpr);
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
   if (!APP.ctx) APP.ctx = cv.getContext('2d', { alpha: false });
-  APP.W = W; APP.H = H; APP.k = W / 956; APP.menuCv = newCanvas(W, H);
+  APP.W = W; APP.H = H; APP.k = W / 956; release(APP.menuCv); APP.menuCv = newCanvas(W, H);
+  BD_CACHE.forEach(release); BD_CACHE.clear();
   resetLayers(); for (const k in UI_SPR) delete UI_SPR[k];
   APP.dirty = true; APP.blit = true;
 }
 function toLogical(e) { const r = APP.canvas.getBoundingClientRect(); return [(e.clientX - r.left) * 956 / r.width, (e.clientY - r.top) * 440 / r.height]; }
-function captureSnap() { const s = newCanvas(APP.W, APP.H); s.getContext('2d').drawImage(APP.canvas, 0, 0); APP.snap = s; }
+function captureSnap() { releaseSnap(APP.snap); const s = newCanvas(APP.W, APP.H); s.getContext('2d').drawImage(APP.canvas, 0, 0); APP.snap = s; }
 function setScreen(name, confirm) { APP.screen = name; APP.confirm = confirm || null; APP.dirty = true; APP.blit = true; APP.dyn = false; HITS = []; }
 
 // ---- level flow -----------------------------------------------------------------------------------

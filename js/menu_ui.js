@@ -154,18 +154,19 @@ function boxBlurCanvas(cv, sigma) {
   for (let k = 0; k < 3; k++) { pass(d, buf, true); pass(buf, d, false); }
   ctx.putImageData(img, 0, 0);
 }
-function blurCanvas(src, sigmaDev) {
+function release(cv) { try { if (cv) { cv.width = 0; cv.height = 0; } } catch (_) {} }      // give the memory back at once (iOS keeps canvases around otherwise)
+function blurCanvas(src, sigmaDev) {                          // the result may be smaller than src: draw it stretched to the full size, then release() it
   const k = Math.max(0, Math.round(Math.log2(Math.max(1, sigmaDev / 2.2)))), W = src.width, H = src.height;
   let cur = src, w = W, h = H;
   for (let i = 0; i < k; i++) {
     const nw = Math.max(16, Math.round(w / 2)), nh = Math.max(16, Math.round(h / 2)), t = newCanvas(nw, nh), tc = t.getContext('2d');
-    tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high'; tc.drawImage(cur, 0, 0, nw, nh); cur = t; w = nw; h = nh;
+    tc.imageSmoothingEnabled = true; tc.drawImage(cur, 0, 0, nw, nh);
+    if (cur !== src) release(cur);
+    cur = t; w = nw; h = nh;
   }
   if (cur === src) { const t = newCanvas(W, H); t.getContext('2d').drawImage(src, 0, 0); cur = t; }
   boxBlurCanvas(cur, sigmaDev / Math.pow(2, k));
-  if (cur.width === W && cur.height === H) return cur;
-  const out = newCanvas(W, H), oc = out.getContext('2d'); oc.imageSmoothingEnabled = true; oc.imageSmoothingQuality = 'high'; oc.drawImage(cur, 0, 0, W, H);
-  return out;
+  return cur;
 }
 
 // ---- backdrops -------------------------------------------------------------------------------
@@ -181,12 +182,28 @@ function airfieldCanvas(W, H, view, withPlanes = true) {            // a piece o
   }
   return off;
 }
-function backdrop(c, W, H, view, o = {}) { dimLayer(c, W, H, airfieldCanvas(W, H, view), o); }
-function gameBackdrop(c, W, H, snap, o = {}) { dimLayer(c, W, H, snap, o); }
-function dimLayer(c, W, H, off, o) {
+const BD_CACHE = new Map();
+function backdrop(c, W, H, view, o = {}) {                     // the airfield behind a menu: built once, small, already blurred
+  const key = [W, view.cx, view.cy, view.zoom, o.blur || 0].join('|');
+  let img = BD_CACHE.get(key);
+  if (!img) {
+    const w2 = Math.round(W / 2), h2 = Math.round(H / 2), off = airfieldCanvas(w2, h2, view);
+    img = o.blur ? blurCanvas(off, o.blur * w2 / 956) : off; if (img !== off) release(off);
+    if (BD_CACHE.size >= 4) { const k0 = BD_CACHE.keys().next().value; release(BD_CACHE.get(k0)); BD_CACHE.delete(k0); }
+    BD_CACHE.set(key, img);
+  }
+  dimLayer(c, W, H, img, Object.assign({}, o, { blur: 0 }));
+}
+function releaseSnap(s) { if (!s) return; if (s.__bl) for (const k in s.__bl) release(s.__bl[k]); release(s); }
+function gameBackdrop(c, W, H, snap, o = {}) {                 // the frozen game picture behind pause / result screens
+  if (!o.blur) { dimLayer(c, W, H, snap, o); return; }
+  snap.__bl = snap.__bl || {}; let img = snap.__bl[o.blur];
+  if (!img) img = snap.__bl[o.blur] = blurCanvas(snap, o.blur * W / 956);
+  dimLayer(c, W, H, img, Object.assign({}, o, { blur: 0 }));
+}
+function dimLayer(c, W, H, img, o) {
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-  const img = o.blur ? blurCanvas(off, o.blur * W / 956) : off;
-  if (o.exact) c.drawImage(img, 0, 0, W, H); else c.drawImage(img, -W * 0.02, -H * 0.02, W * 1.04, H * 1.04);
+  if (o.exact) c.drawImage(img, 0, 0, img.width, img.height, 0, 0, W, H); else c.drawImage(img, 0, 0, img.width, img.height, -W * 0.02, -H * 0.02, W * 1.04, H * 1.04);
   c.fillStyle = `rgba(7,13,26,${o.dim ?? 0.55})`; c.fillRect(0, 0, W, H);
   if (o.tint) { c.fillStyle = o.tint; c.fillRect(0, 0, W, H); }
   if (o.flat) { c.fillStyle = o.flat; c.fillRect(0, 0, W, H); }
@@ -229,8 +246,12 @@ function glassPanel(c, W, px, py, pw, ph, pr, o = {}) {                    // fr
   c.save(); c.beginPath(); rr(c, px, py, pw, ph, pr); c.clip();
   const bl = o.blur ?? 1.6;
   if (bl > 0.4) {
-    const snap = newCanvas(c.canvas.width, c.canvas.height); snap.getContext('2d').drawImage(c.canvas, 0, 0);
-    c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(blurCanvas(snap, bl * W / 956), 0, 0); logical(c, W);
+    const k = W / 956, pad = 14, rx = Math.max(0, Math.floor((px - pad) * k)), ry = Math.max(0, Math.floor((py - pad) * k));
+    const rw = Math.min(c.canvas.width - rx, Math.ceil((pw + 2 * pad) * k)), rh = Math.min(c.canvas.height - ry, Math.ceil((ph + 2 * pad) * k));
+    const snap = newCanvas(rw, rh); snap.getContext('2d').drawImage(c.canvas, rx, ry, rw, rh, 0, 0, rw, rh);
+    const bc = blurCanvas(snap, bl * k);
+    c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(bc, 0, 0, bc.width, bc.height, rx, ry, rw, rh); logical(c, W);
+    release(snap); release(bc);
   }
   if (o.shade) { c.fillStyle = `rgba(6,10,18,${o.shade})`; c.fillRect(px, py, pw, ph); }
   c.fillStyle = 'rgba(255,255,255,0.075)';                                                // gloss: the upper ~45% is lighter, with a hard lower edge
@@ -395,8 +416,8 @@ const CONFIRMS = {
 };
 function screenConfirm(c, W, H, kind) {                    // small question window over the pause / settings / main menu
   const K = CONFIRMS[kind]; K.base(c, W, H);
-  const snap = newCanvas(W, H); snap.getContext('2d').drawImage(c.canvas, 0, 0);
-  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(blurCanvas(snap, 3.2 * W / 956), 0, 0);        // the whole screen behind the window: blurred and darker
+  const bc = blurCanvas(c.canvas, 3.2 * W / 956);
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(bc, 0, 0, bc.width, bc.height, 0, 0, W, H); release(bc);        // the whole screen behind the window: blurred and darker
   c.fillStyle = 'rgba(4,8,14,0.38)'; c.fillRect(0, 0, W, H); c.restore(); logical(c, W);
   HITS = []; hit('blocker', 0, 0, 956, 440);
   const pw = 372, ph = K.lines.length > 1 ? 178 : 158, px = 478.4 - pw / 2, py = 220 - ph / 2;
