@@ -147,8 +147,9 @@ function stepLegs(p, dt) {
     if (leg.hold) {                                                          // queue for the take-off point
       const gate = Math.max(0, path.len - 330);
       if (!p.holdRes) {
-        if (p.ls2 >= gate - 2) { if (!G.holdOwner || G.holdOwner === p) { G.holdOwner = p; p.holdRes = true; } }
-        if (!p.holdRes) lim = Math.min(lim, Math.sqrt(2 * path.dec * Math.max(0, gate - p.ls2 - 3)) + (p.ls2 >= gate - 2 ? 0 : 0));
+        // the plane asks for the hold point shortly BEFORE the spot where it would have to stop (a stop spot behind the asking spot left a dead zone: it froze there)
+        if (p.ls2 >= gate - 4) { if (!G.holdOwner || G.holdOwner === p) { G.holdOwner = p; p.holdRes = true; } }
+        if (!p.holdRes) lim = Math.min(lim, Math.sqrt(2 * path.dec * Math.max(0, gate - p.ls2)));
       }
     }
   }
