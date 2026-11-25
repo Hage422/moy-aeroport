@@ -25,7 +25,7 @@ function newGame(n) {
   const g = {
     n, def, diff, upg: Object.assign({}, SAVE.upg), t: 0, over: null, overT: 0, money: SAVE.money, earned: 0, score: 0,
     left: { S: def.plan.S || 0, M: def.plan.M || 0, L: def.plan.L || 0 }, planes: [], vehicles: [], stands: {}, bridges: {},
-    waiting: null, holdOwner: null, beaconLeft: 5, nextId: 1, vid: 1, sel: null, picker: null, toast: null, si: 0, winT: -1, hint: '', lastTake: 0, anim: 0,
+    waiting: null, holdOwner: null, beaconLeft: 5, nextId: 1, vid: 1, sel: null, picker: null, toast: null, si: 0, winT: -1, hint: '', lastTake: 0, anim: 0, glow: null,
   };
   g.sched = makeSchedule(def, diff);
   g.lastArr = g.sched.length ? g.sched[g.sched.length - 1].t : 0;
@@ -302,6 +302,7 @@ function pressService(k) {
   const p = g.sel;
   if (!p || p.st !== 'parked' || p.svc) return;
   if (SERVICES[p.svcIdx] !== k) return;                                       // out of order: nothing happens
+  g.glow = { i: SERVICES.indexOf(k), rel: null };                              // the pressed button glows (see drawOverlay)
   if (k === 'takeoff') { departPlane(p); SND.play('tap'); return; }
   if (g.picker && g.picker.svc === k) { g.picker = null; return; }
   if (needsPicker(p, k)) { g.picker = { plane: p, svc: k, flash: 0 }; SND.play('tap'); }

@@ -203,9 +203,19 @@ function drawOverlay(c, g, now) {
   }
 
   if (g.picker) layerDraw(L_PICK, c, g.picker.flash > 0 ? 'f' : 'n', lc => drawSizePicker(lc, g.picker.flash > 0));
-  const pressed = g.picker ? SERVICES.indexOf(g.picker.svc) : -1;
-  layerDraw(L_PANEL, c, pressed, lc => drawServicePanel(lc, pressed));
+  layerDraw(L_PANEL, c, 0, lc => drawServicePanel(lc, -1));
+  const gl = g.glow;                                                                          // glow of the pressed service: steady while its size choice is open, then it fades
+  if (gl) {
+    let a = 1;
+    if (g.picker && SERVICES.indexOf(g.picker.svc) === gl.i) gl.rel = null;
+    else {
+      if (gl.rel === null) gl.rel = now;
+      const t = (now - gl.rel - GLOW_HOLD) / GLOW_FADE; a = t <= 0 ? 1 : 1 - t * t * (3 - 2 * t);
+    }
+    if (a <= 0.01) g.glow = null; else drawServiceGlow(c, gl.i, a, 0.5 + 0.5 * Math.sin(now * 5));
+  }
 }
+const GLOW_HOLD = 0.3, GLOW_FADE = 0.6;                                                       // seconds the glow stays full after the choice, then fades out
 const UI_SPR = {};
 function uiSprite(key, w, h, fn) {
   const k = APP.k, e = UI_SPR[key]; if (e && e.k === k) return e.cv;

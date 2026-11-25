@@ -116,6 +116,22 @@ function drawServicePanel(c, sel) {
   c.restore();
 }
 
+// soft glow on the service button the player has just pressed; a = 0..1 strength, breathe = 0..1 slow pulse (drawn over the panel every frame, the panel itself stays cached)
+function drawServiceGlow(c, i, a, breathe) {
+  const W = 956, H = 440, w = 336, h = 48, x0 = W / 2 - w / 2, y0 = H - h - 28, step = (w - 70) / 5, names = ['deboard', 'baggage', 'fuel', 'catering', 'board', 'takeoff'];
+  const x = x0 + 35 + i * step, y = y0 + h / 2 + 2, k = a * (0.9 + 0.1 * breathe), al = v => (v * k).toFixed(3);
+  c.save();
+  c.globalCompositeOperation = 'lighter';                                      // light adds up: a halo instead of a flat coloured disc
+  const g = c.createRadialGradient(x, y, 4, x, y, 40);
+  g.addColorStop(0, 'rgba(70,205,255,' + al(0.42) + ')'); g.addColorStop(0.45, 'rgba(50,180,255,' + al(0.22) + ')'); g.addColorStop(1, 'rgba(40,160,255,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, 40, 0, TAU); c.fill();
+  c.globalCompositeOperation = 'source-over';
+  c.beginPath(); rr(c, x - 21, y - 21, 42, 42, 9);
+  c.fillStyle = 'rgba(60,200,255,' + al(0.24) + ')'; c.fill(); c.strokeStyle = 'rgba(150,235,255,' + al(0.95) + ')'; c.lineWidth = 1.5; c.stroke();
+  c.globalAlpha = Math.min(1, 1.15 * k); c.translate(x, y); drawIcon(c, names[i], 26, '#ffffff', 2);
+  c.restore();
+}
+
 // plane-size choice (small / medium / large silhouettes) right above the service panel
 function drawSizePicker(c, flash) {
   const cx = 956 / 2, bw = 56, bh = 50, gap = 8, w = 3 * bw + 2 * gap + 22, h = bh + 14, x0 = cx - w / 2, y0 = 440 - 48 - 28 - 8 - h;
