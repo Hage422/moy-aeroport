@@ -100,35 +100,42 @@ function drawHUD(c, st) {
   c.restore();
 }
 
-function drawServicePanel(c, sel) {
-  const W = 956, H = 440, w = 336, h = 48, x0 = W / 2 - w / 2, y0 = H - h - 28, names = ['deboard', 'baggage', 'fuel', 'catering', 'board', 'takeoff'];
+// ---- bottom service panel: the plate is cached, the icons are drawn every frame -----------------------------
+// The icon of the service the selected plane needs right now grows and turns lime green (as in the original), the neighbours slide aside.
+const PANEL_CYAN = [63, 210, 255], PANEL_LIME = [125, 251, 46], PANEL_ICON = 26, PANEL_BIG = 1.6, PANEL_Y = 364 + 24 + 2;
+const mixRGB = (a, b, t) => 'rgb(' + a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',') + ')';
+function panelLayout(sc) {                                  // sc[i] = current scale of icon i -> icon centres and slot edges (the row stays centred)
+  const w = sc.map(s => 53.2 + PANEL_ICON * 0.6 * (s - 1)), tot = w.reduce((p, q) => p + q, 0);
+  let x = 478 - tot / 2; const edge = [x], cx = [];
+  for (let i = 0; i < 6; i++) { cx.push(x + w[i] / 2); x += w[i]; edge.push(x); }
+  return { cx, edge };
+}
+function drawServicePanel(c) {
+  const W = 956, H = 440, w = 336, h = 48, x0 = W / 2 - w / 2, y0 = H - h - 28;
   c.save();
   c.beginPath(); c.moveTo(x0 + 24, y0); c.lineTo(x0 + w - 24, y0); c.lineTo(x0 + w + 6, y0 + h + 6); c.lineTo(x0 - 6, y0 + h + 6); c.closePath();
   c.shadowColor = 'rgba(0,0,0,0.4)'; c.shadowBlur = 12; c.shadowOffsetY = 2; c.fillStyle = 'rgba(11,18,33,0.9)'; c.fill();
   c.shadowColor = 'transparent'; c.strokeStyle = 'rgba(90,190,255,0.45)'; c.lineWidth = 1; c.stroke();
-  const step = (w - 70) / 5;
-  names.forEach((n, i) => {
-    const x = x0 + 35 + i * step, y = y0 + h / 2 + 2;
-    if (i === sel) { c.beginPath(); rr(c, x - 21, y - 21, 42, 42, 9); c.fillStyle = 'rgba(60,200,255,0.22)'; c.fill(); c.strokeStyle = 'rgba(120,225,255,0.9)'; c.lineWidth = 1.4; c.stroke(); }
-    c.save(); c.translate(x, y); drawIcon(c, n, 26, i === sel ? '#ffffff' : '#3fd2ff', 2); c.restore();
-  });
-  c.strokeStyle = 'rgba(90,190,255,0.35)'; c.lineWidth = 1; const dx = x0 + 35 + 4.5 * step; c.beginPath(); c.moveTo(dx, y0 + 8); c.lineTo(dx, y0 + h - 2); c.stroke();
   c.restore();
 }
-
-// soft glow on the service button the player has just pressed; a = 0..1 strength, breathe = 0..1 slow pulse (drawn over the panel every frame, the panel itself stays cached)
-function drawServiceGlow(c, i, a, breathe) {
-  const W = 956, H = 440, w = 336, h = 48, x0 = W / 2 - w / 2, y0 = H - h - 28, step = (w - 70) / 5, names = ['deboard', 'baggage', 'fuel', 'catering', 'board', 'takeoff'];
-  const x = x0 + 35 + i * step, y = y0 + h / 2 + 2, k = a * (0.9 + 0.1 * breathe), al = v => (v * k).toFixed(3);
+function drawServiceIcons(c, sc) {
+  const L = panelLayout(sc), names = ['deboard', 'baggage', 'fuel', 'catering', 'board', 'takeoff'];
+  c.save();
+  c.strokeStyle = 'rgba(90,190,255,0.35)'; c.lineWidth = 1; c.beginPath(); c.moveTo(L.edge[5], 372); c.lineTo(L.edge[5], 410); c.stroke();     // line before the take-off icon
+  names.forEach((n, i) => {
+    const t = clamp((sc[i] - 1) / (PANEL_BIG - 1), 0, 1);
+    c.save(); c.translate(L.cx[i], PANEL_Y); drawIcon(c, n, PANEL_ICON * sc[i], mixRGB(PANEL_CYAN, PANEL_LIME, t), 2); c.restore();
+  });
+  c.restore();
+}
+// soft green glow behind the service button the player has just pressed; x = centre of the icon, a = 0..1 strength, breathe = 0..1 slow pulse
+function drawServiceGlow(c, x, a, breathe) {
+  const k = a * (0.9 + 0.1 * breathe), al = v => (v * k).toFixed(3);
   c.save();
   c.globalCompositeOperation = 'lighter';                                      // light adds up: a halo instead of a flat coloured disc
-  const g = c.createRadialGradient(x, y, 4, x, y, 40);
-  g.addColorStop(0, 'rgba(70,205,255,' + al(0.42) + ')'); g.addColorStop(0.45, 'rgba(50,180,255,' + al(0.22) + ')'); g.addColorStop(1, 'rgba(40,160,255,0)');
-  c.fillStyle = g; c.beginPath(); c.arc(x, y, 40, 0, TAU); c.fill();
-  c.globalCompositeOperation = 'source-over';
-  c.beginPath(); rr(c, x - 21, y - 21, 42, 42, 9);
-  c.fillStyle = 'rgba(60,200,255,' + al(0.24) + ')'; c.fill(); c.strokeStyle = 'rgba(150,235,255,' + al(0.95) + ')'; c.lineWidth = 1.5; c.stroke();
-  c.globalAlpha = Math.min(1, 1.15 * k); c.translate(x, y); drawIcon(c, names[i], 26, '#ffffff', 2);
+  const g = c.createRadialGradient(x, PANEL_Y, 6, x, PANEL_Y, 46);
+  g.addColorStop(0, 'rgba(125,251,46,' + al(0.36) + ')'); g.addColorStop(0.5, 'rgba(110,240,60,' + al(0.17) + ')'); g.addColorStop(1, 'rgba(100,230,60,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(x, PANEL_Y, 46, 0, TAU); c.fill();
   c.restore();
 }
 

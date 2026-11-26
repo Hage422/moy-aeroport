@@ -145,10 +145,25 @@ function drawWorld(c, g, sc) {
 
 // ---- the interface (logical 956 x 440 coordinates) ----------------------------------------------------
 const PAUSE_HIT = { x: 222, y: 0, w: 112, h: 40 };
-const PANEL_HIT = { x: 300, y: 356, w: 356, h: 62 }, PANEL_STEP = 53.2, PANEL_X0 = 345, PANEL_CY = 390;
+const PANEL_HIT = { x: 300, y: 356, w: 356, h: 62 };
 function panelButtonAt(x, y) {
   if (y < PANEL_HIT.y || y > PANEL_HIT.y + PANEL_HIT.h || x < PANEL_HIT.x || x > PANEL_HIT.x + PANEL_HIT.w) return -2;      // not on the panel
-  const i = Math.floor((x - (PANEL_X0 - PANEL_STEP / 2)) / PANEL_STEP); return i >= 0 && i < 6 ? i : -1;
+  const e = panelLayout(PANEL.s).edge;                                                                                       // the slots move a little while an icon grows
+  if (x < e[0] || x > e[6]) return -1;
+  for (let i = 0; i < 6; i++) if (x <= e[i + 1]) return i;
+  return -1;
+}
+// animation of the panel icons: the one the selected plane needs right now grows (spring, a little overshoot) and turns green
+const PANEL = { s: [1, 1, 1, 1, 1, 1], v: [0, 0, 0, 0, 0, 0], last: 0, g: null };
+function panelTarget(g) { const p = g.sel; return p && !g.over && p.st === 'parked' && !p.svc ? p.svcIdx : -1; }
+function panelStep(g, now) {
+  if (PANEL.g !== g) { PANEL.g = g; PANEL.s.fill(1); PANEL.v.fill(0); PANEL.last = now; }
+  const dt = clamp(now - PANEL.last, 0, 0.05), n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n, tg = panelTarget(g); PANEL.last = now;
+  for (let i = 0; i < 6; i++) {
+    const to = i === tg ? PANEL_BIG : 1; let s = PANEL.s[i], v = PANEL.v[i];
+    for (let j = 0; j < n; j++) { v += (-420 * (s - to) - 25 * v) * h; s += v * h; }
+    PANEL.s[i] = s; PANEL.v[i] = v;
+  }
 }
 function pickerBoxAt(x, y) {
   for (let i = 0; i < 3; i++) { const bx = 386 + i * 64; if (x >= bx - 5 && x <= bx + 61 && y >= 294 && y <= 358) return ['S', 'M', 'L'][i]; }
@@ -203,7 +218,8 @@ function drawOverlay(c, g, now) {
   }
 
   if (g.picker) layerDraw(L_PICK, c, g.picker.flash > 0 ? 'f' : 'n', lc => drawSizePicker(lc, g.picker.flash > 0));
-  layerDraw(L_PANEL, c, 0, lc => drawServicePanel(lc, -1));
+  layerDraw(L_PANEL, c, 0, lc => drawServicePanel(lc));
+  panelStep(g, now);
   const gl = g.glow;                                                                          // glow of the pressed service: steady while its size choice is open, then it fades
   if (gl) {
     let a = 1;
@@ -212,10 +228,11 @@ function drawOverlay(c, g, now) {
       if (gl.rel === null) gl.rel = now;
       const t = (now - gl.rel - GLOW_HOLD) / GLOW_FADE; a = t <= 0 ? 1 : 1 - t * t * (3 - 2 * t);
     }
-    if (a <= 0.01) g.glow = null; else drawServiceGlow(c, gl.i, a, 0.5 + 0.5 * Math.sin(now * 5));
+    if (a <= 0.01) g.glow = null; else drawServiceGlow(c, panelLayout(PANEL.s).cx[gl.i], a, 0.5 + 0.5 * Math.sin(now * 5));
   }
+  drawServiceIcons(c, PANEL.s);
 }
-const GLOW_HOLD = 0.3, GLOW_FADE = 0.6;                                                       // seconds the glow stays full after the choice, then fades out
+const GLOW_HOLD = 0.12, GLOW_FADE = 0.5;                                                       // seconds the glow stays full after the choice, then fades out
 const UI_SPR = {};
 function uiSprite(key, w, h, fn) {
   const k = APP.k, e = UI_SPR[key]; if (e && e.k === k) return e.cv;
