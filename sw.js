@@ -1,6 +1,6 @@
 // sw.js — lets the game open without internet. Online it always takes the newest files (so updates show up on the next launch);
 // offline it uses the copies saved the last time it was online.
-const BUILD = 5;
+const BUILD = 6;
 const CACHE = 'moy-aeroport-cache';
 const EXTRA = ['./', 'index.html', 'manifest.json', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'assets/map.webp?v=1',
   'fonts/Inter-500.woff', 'fonts/Inter-600.woff', 'fonts/Inter-700.woff', 'fonts/Inter-800.woff'];

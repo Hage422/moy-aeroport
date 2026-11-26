@@ -44,7 +44,7 @@ function stepGame(dt) {
 
   const e = g.sched[g.si];                                   // next landing
   if (e) {
-    if (!e.warned && g.t >= e.t - WARN_LEAD) { e.warned = true; SND.play('warn'); }
+    if (!e.warned && g.t >= e.t - WARN_LEAD) e.warned = true;  // the red blinking icon announces a landing; no sound (the player asked to remove it)
     if (g.t >= e.t) {
       const busy = g.waiting || g.planes.some(p => p.st === 'land');
       if (busy && g.upg.beacon && g.beaconLeft > 0) {          // radio beacon: the runway is not free yet, postpone this landing
